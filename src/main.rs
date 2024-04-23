@@ -1,0 +1,137 @@
+use std::{env::args, fs::File, time::Instant};
+
+use memmap2::Mmap;
+use rayon::prelude::*;
+use rustc_hash::FxHashMap;
+
+/// Number of threads to use for processing the input.
+/// This should be adjusted based on the number of cores available.
+const THREADS: usize = 10;
+
+fn main() {
+    let start = Instant::now();
+
+    let path = args().nth(1).expect("missing input file");
+    let fp = File::open(path).expect("failed to open input file");
+    let input = unsafe { Mmap::map(&fp).expect("failed to mmap") };
+
+    let chunk_size = input.len() / THREADS;
+    let cities = (0..THREADS)
+        .into_par_iter()
+        .map(|thread| process_chunk(&input, thread * chunk_size, (1 + thread) * chunk_size))
+        .reduce_with(merge_results)
+        .unwrap();
+
+    // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
+    let mut result = Vec::with_capacity(10_000);
+    result.extend(cities);
+    result.sort_unstable_by(|a, b| a.0.cmp(b.0));
+    result.iter().for_each(
+        |(
+            city,
+            Entry {
+                min,
+                max,
+                count,
+                sum,
+            },
+        )| {
+            let mut mean = (sum / *count as f64 * 10.).round() / 10.;
+            // Round negative zero to positive zero to match Java behaviour.
+            if mean == -0. {
+                mean = 0.;
+            }
+            println!("{city}={:.1}/{:.1}/{:.1}", min, mean, max);
+        },
+    );
+
+    let elapsed = start.elapsed();
+    eprintln!("Elapsed: {} ms", elapsed.as_millis());
+}
+
+fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&str, Entry> {
+    let mut head = from;
+
+    // If starting in the middle, skip the first complete line, move head to the first character of
+    // the next line. The previous chunk will include the line that straddles the boundary.
+    if head != 0 {
+        while input[head] != b'\n' {
+            head += 1;
+        }
+        head += 1
+    };
+
+    let mut cities: FxHashMap<&str, Entry> = FxHashMap::default();
+    // The challenge states that there are at most 10_000 cities, so we can pre-allocate..
+    cities.reserve(10_000);
+    while head < to {
+        let mut tail = head;
+        // Move tail onto the next newline.
+        while input[tail] != b'\n' {
+            tail += 1;
+        }
+
+        let (city, reading) = parse_line(&input[head..tail]);
+        upsert_entry(
+            &mut cities,
+            city,
+            Entry {
+                min: reading,
+                max: reading,
+                sum: reading as f64,
+                count: 1,
+            },
+        );
+
+        // Move head onto the first character of the next line.
+        head = tail + 1;
+    }
+
+    cities
+}
+
+#[inline]
+fn parse_line(line: &[u8]) -> (&str, f32) {
+    let semicolon = line.iter().position(|&c| c == b';').unwrap();
+    (
+        unsafe { std::str::from_utf8_unchecked(&line[..semicolon]) },
+        fast_float::parse(&line[semicolon + 1..]).unwrap(),
+    )
+}
+
+#[inline]
+fn merge_results<'a>(
+    mut a: FxHashMap<&'a str, Entry>,
+    b: FxHashMap<&'a str, Entry>,
+) -> FxHashMap<&'a str, Entry> {
+    b.into_iter().for_each(|(city, entry)| {
+        upsert_entry(&mut a, city, entry);
+    });
+    a
+}
+
+#[inline]
+fn upsert_entry<'a>(cities: &mut FxHashMap<&'a str, Entry>, city: &'a str, entry: Entry) {
+    if let Some(Entry {
+        ref mut min,
+        ref mut max,
+        ref mut sum,
+        ref mut count,
+    }) = cities.get_mut(city)
+    {
+        *min = min.min(entry.min);
+        *max = max.max(entry.max);
+        *sum += entry.sum;
+        *count += entry.count;
+    } else {
+        cities.insert(city, entry);
+    }
+}
+
+#[derive(Copy, Clone)]
+struct Entry {
+    min: f32,
+    max: f32,
+    sum: f64,
+    count: usize,
+}

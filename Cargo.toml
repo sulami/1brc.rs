@@ -1,0 +1,15 @@
+[package]
+name = "onebrc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fast-float = "0.2"
+memmap2 = "0.9"
+rayon = "1"
+rustc-hash = "1"
+
+[profile.release]
+lto = true
