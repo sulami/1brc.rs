@@ -49,7 +49,8 @@ fn main() {
             }
             write!(
                 lock,
-                "{city}={}/{}/{}{}",
+                "{}={}/{}/{}{}",
+                unsafe { std::str::from_utf8_unchecked(&city) },
                 min,
                 mean,
                 max,
@@ -64,7 +65,7 @@ fn main() {
     eprintln!("Elapsed: {} ms", elapsed.as_millis());
 }
 
-fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&str, Entry> {
+fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&[u8], Entry> {
     let mut head = from;
 
     // If starting in the middle, skip the first complete line, move head to the first character of
@@ -76,7 +77,7 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&str, Entry>
         head += 1
     };
 
-    let mut cities: FxHashMap<&str, Entry> = FxHashMap::default();
+    let mut cities: FxHashMap<&[u8], Entry> = FxHashMap::default();
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
     cities.reserve(10_000);
     while head < to {
@@ -107,19 +108,19 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&str, Entry>
 }
 
 #[inline]
-fn parse_line(line: &[u8]) -> (&str, f32) {
+fn parse_line(line: &[u8]) -> (&[u8], f32) {
     let semicolon = line.iter().position(|&c| c == b';').unwrap();
     (
-        unsafe { std::str::from_utf8_unchecked(&line[..semicolon]) },
+        &line[..semicolon],
         fast_float::parse(&line[semicolon + 1..]).unwrap(),
     )
 }
 
 #[inline]
 fn merge_results<'a>(
-    mut a: FxHashMap<&'a str, Entry>,
-    b: FxHashMap<&'a str, Entry>,
-) -> FxHashMap<&'a str, Entry> {
+    mut a: FxHashMap<&'a [u8], Entry>,
+    b: FxHashMap<&'a [u8], Entry>,
+) -> FxHashMap<&'a [u8], Entry> {
     b.into_iter().for_each(|(city, entry)| {
         upsert_entry(&mut a, city, entry);
     });
@@ -127,7 +128,7 @@ fn merge_results<'a>(
 }
 
 #[inline]
-fn upsert_entry<'a>(cities: &mut FxHashMap<&'a str, Entry>, city: &'a str, entry: Entry) {
+fn upsert_entry<'a>(cities: &mut FxHashMap<&'a [u8], Entry>, city: &'a [u8], entry: Entry) {
     if let Some(Entry {
         ref mut min,
         ref mut max,
