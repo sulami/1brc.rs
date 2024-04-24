@@ -19,8 +19,7 @@ fn main() {
     let cities = (0..THREADS)
         .into_par_iter()
         .map(|thread| process_chunk(&input, thread * chunk_size, (1 + thread) * chunk_size))
-        .reduce_with(merge_results)
-        .unwrap();
+        .reduce(FxHashMap::default, merge_results);
 
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
     let mut result = Vec::with_capacity(10_000);
@@ -81,7 +80,8 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&str, Entry>
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
     cities.reserve(10_000);
     while head < to {
-        let mut tail = head;
+        // We know each line is at least 5 bytes long, so we can skip ahead.
+        let mut tail = head + 5;
         // Move tail onto the next newline.
         while input[tail] != b'\n' {
             tail += 1;
