@@ -148,5 +148,5 @@ struct Entry {
     min: f32,
     max: f32,
     sum: f64,
-    count: usize,
+    count: u32,
 }
