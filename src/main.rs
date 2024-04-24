@@ -13,7 +13,7 @@ fn main() {
 
     let path = args().nth(1).expect("missing input file");
     let fp = File::open(path).expect("failed to open input file");
-    let input = unsafe { Mmap::map(&fp).expect("failed to mmap") };
+    let input = unsafe { Mmap::map(&fp).expect("failed to map file") };
 
     let chunk_size = input.len() / THREADS;
     let cities = (0..THREADS)
@@ -25,25 +25,37 @@ fn main() {
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
     let mut result = Vec::with_capacity(10_000);
     result.extend(cities);
-    result.sort_unstable_by(|a, b| a.0.cmp(b.0));
-    result.iter().for_each(
+    let result_count = result.len();
+    result.sort_unstable_by_key(|x| x.0);
+    print!("{{");
+    result.into_iter().enumerate().for_each(
         |(
-            city,
-            Entry {
-                min,
-                max,
-                count,
-                sum,
-            },
+            idx,
+            (
+                city,
+                Entry {
+                    min,
+                    max,
+                    count,
+                    sum,
+                },
+            ),
         )| {
-            let mut mean = (sum / *count as f64 * 10.).round() / 10.;
+            let mut mean = (sum / count as f64 * 10.).round() / 10.;
             // Round negative zero to positive zero to match Java behaviour.
             if mean == -0. {
                 mean = 0.;
             }
-            println!("{city}={:.1}/{:.1}/{:.1}", min, mean, max);
+            print!(
+                "{city}={}/{}/{}{}",
+                min,
+                mean,
+                max,
+                if idx == result_count - 1 { "" } else { "," }
+            );
         },
     );
+    println!("}}");
 
     let elapsed = start.elapsed();
     eprintln!("Elapsed: {} ms", elapsed.as_millis());
@@ -62,7 +74,7 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&str, Entry>
     };
 
     let mut cities: FxHashMap<&str, Entry> = FxHashMap::default();
-    // The challenge states that there are at most 10_000 cities, so we can pre-allocate..
+    // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
     cities.reserve(10_000);
     while head < to {
         let mut tail = head;
@@ -128,7 +140,6 @@ fn upsert_entry<'a>(cities: &mut FxHashMap<&'a str, Entry>, city: &'a str, entry
     }
 }
 
-#[derive(Copy, Clone)]
 struct Entry {
     min: f32,
     max: f32,
