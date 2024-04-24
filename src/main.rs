@@ -1,4 +1,4 @@
-use std::{env::args, fs::File, time::Instant};
+use std::{env::args, fs::File, io::stdout, io::Write, time::Instant};
 
 use memmap2::Mmap;
 use rayon::prelude::*;
@@ -27,7 +27,9 @@ fn main() {
     result.extend(cities);
     let result_count = result.len();
     result.sort_unstable_by_key(|x| x.0);
-    print!("{{");
+
+    let mut lock = stdout().lock();
+    write!(lock, "{{").unwrap();
     result.into_iter().enumerate().for_each(
         |(
             idx,
@@ -46,16 +48,18 @@ fn main() {
             if mean == -0. {
                 mean = 0.;
             }
-            print!(
+            write!(
+                lock,
                 "{city}={}/{}/{}{}",
                 min,
                 mean,
                 max,
                 if idx == result_count - 1 { "" } else { "," }
-            );
+            )
+            .unwrap();
         },
     );
-    println!("}}");
+    writeln!(lock, "}}").unwrap();
 
     let elapsed = start.elapsed();
     eprintln!("Elapsed: {} ms", elapsed.as_millis());
