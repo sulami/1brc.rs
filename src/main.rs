@@ -50,7 +50,7 @@ fn main() {
             write!(
                 lock,
                 "{}={}/{}/{}{}",
-                unsafe { std::str::from_utf8_unchecked(&city) },
+                unsafe { std::str::from_utf8_unchecked(city) },
                 min,
                 mean,
                 max,
