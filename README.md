@@ -3,7 +3,7 @@
 This is a Rust solution to the [One Billion Row Challenge](https://github.com/gunnarmorling/1brc), which involves
 reading one billion rows of data and producing some aggregations.
 
-This solution runs in about 3.7 seconds on an M1 Pro, with results verified against the reference implementation.
+This solution runs in about 3.5 seconds on an M1 Pro, with results verified against the reference implementation.
 
 While the original challenge is limited to Java, and no external libraries, this is Rust, and a small selection of
 libraries have been used. One could copy or reimplement the code, but I don't see the point.
@@ -48,9 +48,6 @@ To avoid locking overhead, `stdout` is locked once while I write out all the res
 
 Rayon has parallel `extend` and `sort` methods for vectors, but for the number of unique stations we have, those are
 actually slower than just doing the work on one thread.
-
-I tried splitting `upsert_entry` between the two uses, but as I expected they have the same call patterns so this
-doesn't help branch prediction.
 
 I have tried using `i16` to store the minimum and maximium values times 10, but the back-and-forth conversions actually
 cost more than the reduction in size saves. The idea was that `Entry` could be brought down to 128 bytes, which would be

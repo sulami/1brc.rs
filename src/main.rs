@@ -91,16 +91,7 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> AHashMap<&[u8], Entry>
         let reading =
             fast_float::parse(unsafe { input.get_unchecked(semicolon + 1..tail) }).unwrap();
 
-        upsert_entry(
-            &mut cities,
-            city,
-            Entry {
-                min: reading,
-                max: reading,
-                sum: reading as f64,
-                count: 1,
-            },
-        );
+        insert_reading(&mut cities, city, reading);
 
         // Move head onto the first character of the next line.
         head = tail + 1;
@@ -136,6 +127,31 @@ fn upsert_entry<'a>(cities: &mut AHashMap<&'a [u8], Entry>, city: &'a [u8], entr
     } else {
         cities.insert(city, entry);
     }
+}
+
+#[inline]
+fn insert_reading<'a>(cities: &mut AHashMap<&'a [u8], Entry>, city: &'a [u8], reading: f32) {
+    cities
+        .entry(city)
+        .and_modify(
+            |Entry {
+                 min,
+                 max,
+                 sum,
+                 count,
+             }| {
+                *min = min.min(reading);
+                *max = max.max(reading);
+                *sum += reading as f64;
+                *count += 1;
+            },
+        )
+        .or_insert_with(|| Entry {
+            min: reading,
+            max: reading,
+            sum: reading as f64,
+            count: 1,
+        });
 }
 
 struct Entry {
