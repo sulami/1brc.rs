@@ -19,7 +19,14 @@ fn main() {
     let cities = (0..THREADS)
         .into_par_iter()
         .map(|thread| process_chunk(&input, thread * chunk_size, (1 + thread) * chunk_size))
-        .reduce(FxHashMap::default, merge_results);
+        .reduce(
+            || {
+                let mut map = FxHashMap::default();
+                map.reserve(10_000);
+                map
+            },
+            merge_results,
+        );
 
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
     let mut result = Vec::with_capacity(10_000);
