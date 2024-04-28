@@ -19,10 +19,8 @@ fn main() {
     let cities = (0..THREADS)
         .into_par_iter()
         .map(|thread| process_chunk(&input, thread * chunk_size, (1 + thread) * chunk_size))
-        .reduce(|| AHashMap::with_capacity(10_000), merge_results);
-
-    // Beyond this point we're dealing with only 10k elements, at which point Rayon's parallel
-    // iterators incur more overhead than they gain, so single-threaded operations are used.
+        .reduce_with(merge_results)
+        .unwrap();
 
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
     let mut result = Vec::with_capacity(10_000);
