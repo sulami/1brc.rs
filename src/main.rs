@@ -116,7 +116,13 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&[u8], Entry
 
 #[inline]
 fn parse_line(line: &[u8]) -> (&[u8], f32) {
-    let semicolon = line.iter().position(|&c| c == b';').unwrap();
+    let semicolon = line
+        .iter()
+        // We know the first byte cannot be a semicolon, so we can skip it.
+        .skip(1)
+        .position(|&c| c == b';')
+        .map(|x| x + 1)
+        .unwrap();
     (
         &line[..semicolon],
         fast_float::parse(&line[semicolon + 1..]).unwrap(),
