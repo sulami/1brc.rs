@@ -9,7 +9,7 @@ edition = "2021"
 fast-float = "0.2"
 memmap2 = "0.9"
 rayon = "1"
-rustc-hash = "1"
+ahash = "0.8"
 
 [profile.release]
 lto = true

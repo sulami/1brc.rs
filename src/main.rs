@@ -1,8 +1,8 @@
 use std::{env::args, fs::File, io::stdout, io::Write, time::Instant};
 
+use ahash::AHashMap;
 use memmap2::Mmap;
 use rayon::prelude::*;
-use rustc_hash::FxHashMap;
 
 /// Number of threads to use for processing the input.
 /// This should be adjusted based on the number of cores available.
@@ -19,14 +19,7 @@ fn main() {
     let cities = (0..THREADS)
         .into_par_iter()
         .map(|thread| process_chunk(&input, thread * chunk_size, (1 + thread) * chunk_size))
-        .reduce(
-            || {
-                let mut map = FxHashMap::default();
-                map.reserve(10_000);
-                map
-            },
-            merge_results,
-        );
+        .reduce(|| AHashMap::with_capacity(10_000), merge_results);
 
     // Beyond this point we're dealing with only 10k elements, at which point Rayon's parallel
     // iterators incur more overhead than they gain, so single-threaded operations are used.
@@ -75,7 +68,7 @@ fn main() {
     eprintln!("Elapsed: {} ms", elapsed.as_millis());
 }
 
-fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&[u8], Entry> {
+fn process_chunk(input: &Mmap, from: usize, to: usize) -> AHashMap<&[u8], Entry> {
     let mut head = from;
 
     // If starting in the middle, skip the first complete line, move head to the first character of
@@ -88,7 +81,7 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&[u8], Entry
     };
 
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
-    let mut cities: FxHashMap<&[u8], Entry> = FxHashMap::default();
+    let mut cities: AHashMap<&[u8], Entry> = AHashMap::default();
     cities.reserve(10_000);
 
     while head < to {
@@ -137,9 +130,9 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&[u8], Entry
 
 #[inline]
 fn merge_results<'a>(
-    mut a: FxHashMap<&'a [u8], Entry>,
-    b: FxHashMap<&'a [u8], Entry>,
-) -> FxHashMap<&'a [u8], Entry> {
+    mut a: AHashMap<&'a [u8], Entry>,
+    b: AHashMap<&'a [u8], Entry>,
+) -> AHashMap<&'a [u8], Entry> {
     b.into_iter().for_each(|(city, entry)| {
         upsert_entry(&mut a, city, entry);
     });
@@ -147,7 +140,7 @@ fn merge_results<'a>(
 }
 
 #[inline]
-fn upsert_entry<'a>(cities: &mut FxHashMap<&'a [u8], Entry>, city: &'a [u8], entry: Entry) {
+fn upsert_entry<'a>(cities: &mut AHashMap<&'a [u8], Entry>, city: &'a [u8], entry: Entry) {
     if let Some(Entry {
         ref mut min,
         ref mut max,

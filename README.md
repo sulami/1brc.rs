@@ -3,7 +3,7 @@
 This is a Rust solution to the [One Billion Row Challenge](https://github.com/gunnarmorling/1brc), which involves
 reading one billion rows of data and producing some aggregations.
 
-This solution runs in about four seconds on an M1 Pro, with results verified against the reference implementation.
+This solution runs in just under four seconds on an M1 Pro, with results verified against the reference implementation.
 
 While the original challenge is limited to Java, and no external libraries, this is Rust, and a small selection of
 libraries have been used. One could copy or reimplement the code, but I don't see the point.
@@ -32,8 +32,10 @@ reference uses doubles throughout, I use `f32` for min and max to reduce the mem
 the reduction in size saves. The idea was that `Entry` could be brought down to 128 bytes, which would be two cache
 lines, but it didn't pan out.
 
-Results are stored in `FxHashMap` instances, using string slices as keys to avoid allocations. I have tried various
-different hash functions, and this seems to be the fastest one for this particular workload.
+Results are stored in `AHashMap` instances, using string slices as keys to avoid allocations. I have tried various
+different hash functions, and this seems to be the fastest one for this particular workload. It's important to note that
+raw hashing speed isn't the only thing that matters, quality of the resulting hash affects hash map lookup performance
+as well. With higher quality hashes, the map can arrive at the right data faster.
 
 All heap-allocated data structures are pre-allocated to avoid repeated allocations.
 
