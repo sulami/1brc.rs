@@ -3,7 +3,7 @@
 This is a Rust solution to the [One Billion Row Challenge](https://github.com/gunnarmorling/1brc), which involves
 reading one billion rows of data and producing some aggregations.
 
-This solution runs in just under four seconds on an M1 Pro, with results verified against the reference implementation.
+This solution runs in about 3.7 seconds on an M1 Pro, with results verified against the reference implementation.
 
 While the original challenge is limited to Java, and no external libraries, this is Rust, and a small selection of
 libraries have been used. One could copy or reimplement the code, but I don't see the point.

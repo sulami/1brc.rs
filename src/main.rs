@@ -87,22 +87,17 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> AHashMap<&[u8], Entry>
         let mut tail = head + 1;
 
         // We then search first for the semicolon.
-        let mut semicolon = 0;
-        loop {
-            match unsafe { input.get_unchecked(tail) } {
-                b';' => {
-                    semicolon = tail;
-                    // After the semicolon, there are at least three bytes of temperature reading.
-                    // We continue searching for the end of the line.
-                    tail += 4;
-                }
-                b'\n' => {
-                    break;
-                }
-                _ => {
-                    tail += 1;
-                }
-            }
+        while unsafe { input.get_unchecked(tail) } != &b';' {
+            tail += 1;
+        }
+        let semicolon = tail;
+
+        // After the semicolon, there are at least three bytes of temperature reading.
+        tail += 4;
+
+        // We continue searching for the end of the line.
+        while unsafe { input.get_unchecked(tail) } != &b'\n' {
+            tail += 1;
         }
 
         let city = unsafe { input.get_unchecked(head..semicolon) };
