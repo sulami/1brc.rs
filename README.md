@@ -65,3 +65,10 @@ flush before we're done writing anyway.
 
 I was wondering if using just a `f32` for the sum could work out without losing too much precision, but it doesn't make
 it faster, so there's no point.
+
+In a personal first, I have tried profile-guided optimization (via `cargo pgo`), but the result was actually slower than
+a regular release build.
+
+I'm aware that there are tricks to scan the input lines faster using branchless code, but I haven't been
+able to derive that myself yet. I've tried both memchr and Stringzilla to make use of vectorization, but both were
+slower than my current approach.

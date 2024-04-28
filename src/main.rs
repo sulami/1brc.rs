@@ -30,36 +30,23 @@ fn main() {
 
     let mut lock = stdout().lock();
     write!(lock, "{{").unwrap();
-    result.into_iter().enumerate().for_each(
-        |(
-            idx,
-            (
-                city,
-                Entry {
-                    min,
-                    max,
-                    count,
-                    sum,
-                },
-            ),
-        )| {
-            let mut mean = (sum / count as f64 * 10.).round() / 10.;
-            // Round negative zero to positive zero to match Java behaviour.
-            if mean == -0. {
-                mean = 0.;
-            }
-            write!(
-                lock,
-                "{}={}/{}/{}{}",
-                unsafe { std::str::from_utf8_unchecked(city) },
-                min,
-                mean,
-                max,
-                if idx == result_count - 1 { "" } else { "," }
-            )
-            .unwrap();
-        },
-    );
+    for (idx, (city, entry)) in result.into_iter().enumerate() {
+        let mut mean = (entry.sum / entry.count as f64 * 10.).round() / 10.;
+        // Round negative zero to positive zero to match Java behaviour.
+        if mean == -0. {
+            mean = 0.;
+        }
+        write!(
+            lock,
+            "{}={}/{}/{}{}",
+            unsafe { std::str::from_utf8_unchecked(city) },
+            entry.min,
+            mean,
+            entry.max,
+            if idx == result_count - 1 { "" } else { "," }
+        )
+        .unwrap();
+    }
     writeln!(lock, "}}").unwrap();
 
     let elapsed = start.elapsed();
