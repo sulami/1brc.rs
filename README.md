@@ -19,8 +19,10 @@ program I only deal in pointers to the memory-mapped file.
 The parsing and aggregation is parallelized using Rayon, splitting the input into equal chunks. Each thread aggregates
 its own result set to avoid locking or other kinds of synchronization, with a subsequent merge step.
 
-When parsing input lines, I opportunistically skip ahead when searching for the next newline, which is surprisingly
-effective.
+When parsing input lines, I opportunistically skip ahead when searching for the semicolon or the end of the line, which
+is surprisingly effective. I also only do one scan over every line to find the bounds of the values before parsing. Part
+of what makes this fast is looking at as few bytes as possible. Skipping a single byte on every line improves
+performance by about 5%.
 
 I also assume the input is safe utf-8, and use `str::from_utf8_unchecked` to avoid the overhead of checking each byte.
 

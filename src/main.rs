@@ -28,6 +28,9 @@ fn main() {
             merge_results,
         );
 
+    // Beyond this point we're dealing with only 10k elements, at which point Rayon's parallel
+    // iterators incur more overhead than they gain, so single-threaded operations are used.
+
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
     let mut result = Vec::with_capacity(10_000);
     result.extend(cities);
@@ -84,18 +87,36 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&[u8], Entry
         head += 1
     };
 
-    let mut cities: FxHashMap<&[u8], Entry> = FxHashMap::default();
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
+    let mut cities: FxHashMap<&[u8], Entry> = FxHashMap::default();
     cities.reserve(10_000);
+
     while head < to {
-        // We know each line is at least 5 bytes long, so we can skip ahead.
-        let mut tail = head + 5;
-        // Move tail onto the next newline.
-        while input[tail] != b'\n' {
-            tail += 1;
+        // We know the first byte on the line has to be a name, so we don't need to look at it.
+        let mut tail = head + 1;
+
+        // We then search first for the semicolon.
+        let mut semicolon = 0;
+        loop {
+            match input[tail] {
+                b';' => {
+                    semicolon = tail;
+                    // After the semicolon, there are at least three bytes of temperature reading.
+                    // We continue searching for the end of the line.
+                    tail += 4;
+                }
+                b'\n' => {
+                    break;
+                }
+                _ => {
+                    tail += 1;
+                }
+            }
         }
 
-        let (city, reading) = parse_line(&input[head..tail]);
+        let city = &input[head..semicolon];
+        let reading = fast_float::parse(&input[semicolon + 1..tail]).unwrap();
+
         upsert_entry(
             &mut cities,
             city,
@@ -112,21 +133,6 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> FxHashMap<&[u8], Entry
     }
 
     cities
-}
-
-#[inline]
-fn parse_line(line: &[u8]) -> (&[u8], f32) {
-    let semicolon = line
-        .iter()
-        // We know the first byte cannot be a semicolon, so we can skip it.
-        .skip(1)
-        .position(|&c| c == b';')
-        .map(|x| x + 1)
-        .unwrap();
-    (
-        &line[..semicolon],
-        fast_float::parse(&line[semicolon + 1..]).unwrap(),
-    )
 }
 
 #[inline]
