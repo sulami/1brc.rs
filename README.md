@@ -24,7 +24,9 @@ is surprisingly effective. I also only do one scan over every line to find the b
 of what makes this fast is looking at as few bytes as possible. Skipping a single byte on every line improves
 performance by about 5%.
 
-I also assume the input is safe utf-8, and use `str::from_utf8_unchecked` to avoid the overhead of checking each byte.
+All slice access is using unchecked variants, which is faster because the bounds checks are skipped, but also means the
+program will probably segfault if there is a logic bug. I also assume the input is safe utf-8, and
+use `str::from_utf8_unchecked` to avoid the overhead of checking each byte.
 
 I use an external library to slightly improve float parsing performance, though the gains are marginal. While the
 reference uses doubles throughout, I use `f32` for min and max to reduce the memory footprint as they are bounded to

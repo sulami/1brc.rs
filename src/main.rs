@@ -74,7 +74,7 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> AHashMap<&[u8], Entry>
     // If starting in the middle, skip the first complete line, move head to the first character of
     // the next line. The previous chunk will include the line that straddles the boundary.
     if head != 0 {
-        while input[head] != b'\n' {
+        while unsafe { *input.get_unchecked(head) } != b'\n' {
             head += 1;
         }
         head += 1
@@ -91,7 +91,7 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> AHashMap<&[u8], Entry>
         // We then search first for the semicolon.
         let mut semicolon = 0;
         loop {
-            match input[tail] {
+            match unsafe { input.get_unchecked(tail) } {
                 b';' => {
                     semicolon = tail;
                     // After the semicolon, there are at least three bytes of temperature reading.
@@ -107,8 +107,9 @@ fn process_chunk(input: &Mmap, from: usize, to: usize) -> AHashMap<&[u8], Entry>
             }
         }
 
-        let city = &input[head..semicolon];
-        let reading = fast_float::parse(&input[semicolon + 1..tail]).unwrap();
+        let city = unsafe { input.get_unchecked(head..semicolon) };
+        let reading =
+            fast_float::parse(unsafe { input.get_unchecked(semicolon + 1..tail) }).unwrap();
 
         upsert_entry(
             &mut cities,
