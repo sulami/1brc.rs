@@ -3,7 +3,7 @@
 This is a Rust solution to the [One Billion Row Challenge](https://github.com/gunnarmorling/1brc), which involves
 reading one billion rows of data and producing some aggregations.
 
-This solution runs in about 3.5 seconds on an M1 Pro, with results verified against the reference implementation.
+This solution runs in about 3.3 seconds on an M1 Pro, with results verified against the reference implementation.
 
 While the original challenge is limited to Java, and no external libraries, this is Rust, and a small selection of
 libraries have been used. One could copy or reimplement the code, but I don't see the point.
@@ -28,9 +28,9 @@ All slice access is using unchecked variants, which is faster because the bounds
 program will probably segfault if there is a logic bug. I also assume the input is safe utf-8, and
 use `str::from_utf8_unchecked` to avoid the overhead of checking each byte.
 
-I use an external library to slightly improve float parsing performance, though the gains are marginal. While the
-reference uses doubles throughout, I use `f32` for min and max to reduce the memory footprint as they are bounded to
-±99.9.
+Because temperature readings are limited to ±99.9, I'm reading just the digits without the decimal point and parse those
+into an `i16`, effectively scaling the reading up by 10. This is faster than floating point numbers both for parsing and
+for aggregation. In fact, I only use floating point numbers to calculate the mean.
 
 Results are stored in `AHashMap` instances, using string slices as keys to avoid allocations. I have tried various
 different hash functions, and this seems to be the fastest one for this particular workload. It's important to note that
@@ -46,12 +46,11 @@ To avoid locking overhead, `stdout` is locked once while I write out all the res
 
 ## Things I Tried That Didn't Work
 
+For a long time I was actually using floating point numbers for min/mean/max, but using integers and scaling by 10 is
+faster.
+
 Rayon has parallel `extend` and `sort` methods for vectors, but for the number of unique stations we have, those are
 actually slower than just doing the work on one thread.
-
-I have tried using `i16` to store the minimum and maximium values times 10, but the back-and-forth conversions actually
-cost more than the reduction in size saves. The idea was that `Entry` could be brought down to 128 bytes, which would be
-two cache lines, but it didn't pan out.
 
 Using `BTreeMap` to avoid filling a vector at the end to get a sorted list of stations is much slower than the hash map
 approach. I didn't expect it to be faster, but I was surprised by how big the difference was. Turns out SwissTable with
@@ -59,9 +58,6 @@ a good hash function is really fast.
 
 Buffering the output is slower than not to, probably because we're writing just one big line anyway, so it wouldn't
 flush before we're done writing anyway.
-
-I was wondering if using just a `f32` for the sum could work out without losing too much precision, but it doesn't make
-it faster, so there's no point.
 
 In a personal first, I have tried profile-guided optimization (via `cargo pgo`), but the result was actually slower than
 a regular release build.
