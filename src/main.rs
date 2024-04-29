@@ -48,7 +48,7 @@ fn main() {
     eprintln!("Elapsed: {} ms", elapsed.as_millis());
 }
 
-fn process_chunk(input: &Mmap, from: usize, to: usize) -> AHashMap<&[u8], Entry> {
+fn process_chunk(input: &[u8], from: usize, to: usize) -> AHashMap<&[u8], Entry> {
     let mut head = from;
 
     // If starting in the middle, skip the first complete line, move head to the first character of
@@ -220,5 +220,46 @@ mod tests {
         let mut buf = Vec::new();
         write_i16_as_float(&mut buf, -1);
         assert_eq!(buf, b"-0.1");
+    }
+
+    #[test]
+    fn test_process_chunk_one_line() {
+        let input = b"City;-12.3\n";
+        let cities = process_chunk(input, 0, input.len());
+        assert_eq!(cities.len(), 1);
+        let entry = cities.get(&input[0..4]).unwrap();
+        assert_eq!(entry.min, -123);
+        assert_eq!(entry.max, -123);
+        assert_eq!(entry.sum, -123);
+        assert_eq!(entry.count, 1);
+    }
+
+    #[test]
+    fn test_process_chunk_two_lines() {
+        let input = b"City1;-12.3\nCity2;12.3\n";
+        let cities = process_chunk(input, 0, input.len());
+        assert_eq!(cities.len(), 2);
+        let entry = cities.get(&input[0..5]).unwrap();
+        assert_eq!(entry.min, -123);
+        assert_eq!(entry.max, -123);
+        assert_eq!(entry.sum, -123);
+        assert_eq!(entry.count, 1);
+        let entry = cities.get(&input[12..17]).unwrap();
+        assert_eq!(entry.min, 123);
+        assert_eq!(entry.max, 123);
+        assert_eq!(entry.sum, 123);
+        assert_eq!(entry.count, 1);
+    }
+
+    #[test]
+    fn test_process_chunk_two_lines_same_city() {
+        let input = b"City;-1.2\nCity;0.0\n";
+        let cities = process_chunk(input, 0, input.len());
+        assert_eq!(cities.len(), 1);
+        let entry = cities.get(&input[0..4]).unwrap();
+        assert_eq!(entry.min, -12);
+        assert_eq!(entry.max, 0);
+        assert_eq!(entry.sum, -12);
+        assert_eq!(entry.count, 2);
     }
 }
