@@ -32,20 +32,15 @@ fn main() {
     write!(lock, "{{").unwrap();
     for (idx, (city, entry)) in result.into_iter().enumerate() {
         let mean = (entry.sum as f64 / entry.count as f64).round() as i16;
-        write!(
-            lock,
-            "{}={}.{}/{}{}.{}/{}.{}{comma}",
-            unsafe { std::str::from_utf8_unchecked(city) },
-            entry.min / 10,
-            (entry.min % 10).abs(),
-            if mean < 0 { "-" } else { "" },
-            (mean / 10),
-            (mean % 10).abs(),
-            entry.max / 10,
-            (entry.max % 10).abs(),
-            comma = if idx == result_count - 1 { "" } else { "," }
-        )
-        .unwrap();
+        write!(lock, "{}=", unsafe { std::str::from_utf8_unchecked(city) }).unwrap();
+        write_i16_as_float(&mut lock, entry.min);
+        write!(lock, "/").unwrap();
+        write_i16_as_float(&mut lock, mean);
+        write!(lock, "/").unwrap();
+        write_i16_as_float(&mut lock, entry.max);
+        if idx != result_count - 1 {
+            write!(lock, ",").unwrap();
+        }
     }
     writeln!(lock, "}}").unwrap();
 
@@ -186,4 +181,44 @@ struct Entry {
     sum: i64,
     /// Number of readings.
     count: u32,
+}
+
+/// Writes an i16 as a float with one decimal digit.
+#[inline]
+fn write_i16_as_float(mut destination: impl Write, value: i16) {
+    let abs_value = value.abs();
+    write!(
+        destination,
+        "{sign}{int}.{frac}",
+        sign = if value < 0 { "-" } else { "" },
+        int = abs_value / 10,
+        frac = abs_value % 10
+    )
+    .unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_write_i16_as_float() {
+        let mut buf = Vec::new();
+        write_i16_as_float(&mut buf, 123);
+        assert_eq!(buf, b"12.3");
+    }
+
+    #[test]
+    fn test_write_negative_i16_as_float() {
+        let mut buf = Vec::new();
+        write_i16_as_float(&mut buf, -123);
+        assert_eq!(buf, b"-12.3");
+    }
+
+    #[test]
+    fn test_write_small_negative_i16_as_float() {
+        let mut buf = Vec::new();
+        write_i16_as_float(&mut buf, -1);
+        assert_eq!(buf, b"-0.1");
+    }
 }
