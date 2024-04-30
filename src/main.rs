@@ -81,34 +81,10 @@ fn process_chunk(input: &[u8], from: usize, to: usize) -> AHashMap<&[u8], Entry>
         // and the number of digits. Step onto the first of those bytes.
         tail += 1;
 
-        // Set up a 4 byte buffer to create an i16 from the temperature reading x10, by skipping the
-        // decimal point.
-        let mut reading_buf = [b'0'; 4];
+        // Parse the temperature reading into tenths of degrees.
+        let reading = parse_i16(input, &mut tail);
 
-        // We continue searching for the decimal point, which will also signal the end of the line.
-        for slot in &mut reading_buf {
-            let byte = unsafe { *input.get_unchecked(tail) };
-            if byte == b'.' {
-                // Skip over the decimal point and copy over the fraction digit.
-                *slot = unsafe { *input.get_unchecked(tail + 1) };
-                // The line should be done, advance tail by two onto the newline.
-                tail += 2;
-                break;
-            } else {
-                // Copy over a potential sign and digits.
-                *slot = byte;
-                tail += 1;
-            }
-        }
-
-        // This is number of bytes we copied over for the reading.
-        let reading_len = tail - semicolon - 2;
-
-        // Parse the reading as an i16.
-        let reading = unsafe { core::str::from_utf8_unchecked(&reading_buf[..reading_len]) }
-            .parse::<i16>()
-            .unwrap();
-
+        // Add the new reading.
         insert_reading(&mut cities, city, reading);
 
         // Move head onto the first character of the next line.
@@ -197,6 +173,43 @@ fn write_i16_as_float(mut destination: impl Write, value: i16) {
     .unwrap();
 }
 
+/// Parses a byte slice as i16, assuming it's non-empty and valid.
+/// Skips over the decimal point and records exactly one fractional digit.
+/// Uses the passed ptr reference into the input as the read head.
+/// We really, really need this to be inlined, and rustc makes us ask for it.
+#[inline(always)]
+fn parse_i16(input: &[u8], ptr: &mut usize) -> i16 {
+    // Check if the first byte is a minus. If so, record that fact and step ahead.
+    let negative = unsafe { *input.get_unchecked(*ptr) } == b'-';
+    if negative {
+        *ptr += 1;
+    };
+
+    // Read the temperature reading digit by digit, assuming they're valid.
+    let mut reading = 0_i16;
+    loop {
+        reading = unsafe { reading.unchecked_mul(10) };
+        let byte = unsafe { *input.get_unchecked(*ptr) };
+        if byte == b'.' {
+            // If we find the decimal point, we know there is only one more digit to go.
+            // We actually skip the decimal point because we record tenths of degrees to
+            // avoid floating point operations.
+            reading += unsafe { (*input.get_unchecked(*ptr + 1) as i16).unchecked_sub(48) };
+            *ptr += 2;
+            break;
+        } else {
+            reading += unsafe { (byte as i16).unchecked_sub(48) };
+            *ptr += 1;
+        }
+    }
+
+    if negative {
+        reading *= -1;
+    }
+
+    reading
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,5 +274,18 @@ mod tests {
         assert_eq!(entry.max, 0);
         assert_eq!(entry.sum, -12);
         assert_eq!(entry.count, 2);
+    }
+
+    #[test]
+    fn test_parse_i16() {
+        assert_eq!(123, parse_i16(b"12.3", &mut 0));
+        assert_eq!(-123, parse_i16(b"-12.3", &mut 0));
+    }
+
+    #[test]
+    fn test_parse_i16_updates_ptr() {
+        let mut ptr = 0;
+        parse_i16(b"1.1\nfoo", &mut ptr);
+        assert_eq!(3, ptr);
     }
 }

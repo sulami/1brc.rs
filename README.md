@@ -3,7 +3,8 @@
 This is a Rust solution to the [One Billion Row Challenge](https://github.com/gunnarmorling/1brc), which involves
 reading one billion rows of data and producing some aggregations.
 
-This solution runs in about 3.3 seconds on an M1 Pro, with results verified against the reference implementation.
+This solution runs in about 2.5 seconds on an M1 Pro, with results verified against the baseline Java implementation.
+For comparison, the baseline Java implementation runs for 240 seconds on the same machine.
 
 While the original challenge is limited to Java, and no external libraries, this is Rust, and a small selection of
 libraries have been used. One could copy or reimplement the code, but I don't see the point.
@@ -31,6 +32,10 @@ use `str::from_utf8_unchecked` to avoid the overhead of checking each byte.
 Because temperature readings are limited to ±99.9, I'm reading just the digits without the decimal point and parse those
 into an `i16`, effectively scaling the reading up by 10. This is faster than floating point numbers both for parsing and
 for aggregation. In fact, I only use floating point numbers to calculate the mean.
+
+Going even further, I have implemented my own `i16` parser that parses directly from the bytes, skipping over the
+decimal point, and assumes the data is valid. This is a 20-25% speedup over copying just the digits into a 4-byte array
+and using `str::parse`.
 
 Results are stored in `AHashMap` instances, using string slices as keys to avoid allocations. I have tried various
 different hash functions, and this seems to be the fastest one for this particular workload. It's important to note that
@@ -65,3 +70,6 @@ a regular release build.
 I'm aware that there are tricks to scan the input lines faster using branchless code, but I haven't been
 able to derive that myself yet. I've tried both memchr and Stringzilla to make use of vectorization, but both were
 slower than my current approach.
+
+I have tried replacing various of the hot increments by one with unchecked variants, but without having looked at the
+assembly I'm suspecting that the compiler already elides those checks because it can prove that they're in bounds.
