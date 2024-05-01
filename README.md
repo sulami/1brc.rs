@@ -49,6 +49,9 @@ it's faster, and I know for a fact we don't have equal elements.
 
 To avoid locking overhead, `stdout` is locked once while I write out all the results.
 
+The whole thing is run using Rust nightly, because for whatever reason that produces significantly faster code for
+the specific code I have.
+
 ## Things I Tried That Didn't Work
 
 For a long time I was actually using floating point numbers for min/mean/max, but using integers and scaling by 10 is
@@ -70,6 +73,9 @@ a regular release build.
 I'm aware that there are tricks to scan the input lines faster using branchless code, but I haven't been
 able to derive that myself yet. I've tried both memchr and Stringzilla to make use of vectorization, but both were
 slower than my current approach.
+
+My attempts to use branchless integer parsing were actually slower than using branchs, as was manually unrolling the
+loop with the knowledge that there are either two or three digits to parse.
 
 I have tried replacing various of the hot increments by one with unchecked variants, but without having looked at the
 assembly I'm suspecting that the compiler already elides those checks because it can prove that they're in bounds.

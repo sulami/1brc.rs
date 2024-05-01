@@ -188,17 +188,17 @@ fn parse_i16(input: &[u8], ptr: &mut usize) -> i16 {
     // Read the temperature reading digit by digit, assuming they're valid.
     let mut reading = 0_i16;
     loop {
-        reading = unsafe { reading.unchecked_mul(10) };
+        reading *= 10;
         let byte = unsafe { *input.get_unchecked(*ptr) };
         if byte == b'.' {
             // If we find the decimal point, we know there is only one more digit to go.
             // We actually skip the decimal point because we record tenths of degrees to
             // avoid floating point operations.
-            reading += unsafe { (*input.get_unchecked(*ptr + 1) as i16).unchecked_sub(48) };
+            reading += unsafe { *input.get_unchecked(*ptr + 1) as i16 } - 48;
             *ptr += 2;
             break;
         } else {
-            reading += unsafe { (byte as i16).unchecked_sub(48) };
+            reading += (byte as i16) - 48;
             *ptr += 1;
         }
     }
