@@ -12,13 +12,16 @@ libraries have been used. One could copy or reimplement the code, but I don't se
 Nothing fancy about building it, just run `cargo build --release` and then run the binary with the path to the data file
 as the first argument.
 
+If you like this, you might also
+enjoy [Advent of Code 2022 in under one second](https://github.com/sulami/advent-of-code-2022).
+
 ## Implementation Notes
 
 The obvious first optimization is to memory-map the file instead of actually reading it. In fact, for most of this
 program I only deal in pointers to the memory-mapped file.
 
-The parsing and aggregation is parallelized using Rayon, splitting the input into equal chunks. Each thread aggregates
-its own result set to avoid locking or other kinds of synchronization, with a subsequent merge step.
+The parsing and aggregation is parallelized, splitting the input into equal chunks. Each thread aggregates its own
+result set to avoid locking or other kinds of synchronization, with a subsequent merge step.
 
 When parsing input lines, I opportunistically skip ahead when searching for the semicolon or the end of the line, which
 is surprisingly effective. I also only do one scan over every line to find the bounds of the values before parsing. Part

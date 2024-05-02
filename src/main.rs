@@ -1,8 +1,7 @@
-use std::{env::args, fs::File, io::stdout, io::Write, time::Instant};
+use std::{env::args, fs::File, io::stdout, io::Write, thread, time::Instant};
 
 use ahash::AHashMap;
 use memmap2::Mmap;
-use rayon::prelude::*;
 
 /// Number of threads to use for processing the input.
 /// This should be adjusted based on the number of cores available.
@@ -13,14 +12,26 @@ fn main() {
 
     let path = args().nth(1).expect("missing input file");
     let fp = File::open(path).expect("failed to open input file");
-    let input = unsafe { Mmap::map(&fp).expect("failed to map file") };
+    let mapped_input = unsafe { Mmap::map(&fp).expect("failed to map file") };
 
-    let chunk_size = input.len() / THREADS;
-    let cities = (0..THREADS)
-        .into_par_iter()
-        .map(|thread| process_chunk(&input, thread * chunk_size, (1 + thread) * chunk_size))
-        .reduce_with(merge_results)
-        .unwrap();
+    let cities = thread::scope(|scope| {
+        let input = &mapped_input;
+        let chunk_size = input.len() / THREADS;
+
+        let threads = (0..THREADS)
+            .map(|thread| {
+                scope.spawn(move || {
+                    let start = thread * chunk_size;
+                    process_chunk(input, start, start + chunk_size)
+                })
+            })
+            .collect::<Vec<_>>();
+        threads
+            .into_iter()
+            .map(|thread| thread.join().unwrap())
+            .reduce(merge_results)
+            .unwrap()
+    });
 
     // The challenge states that there are at most 10_000 cities, so we can pre-allocate.
     let mut result = Vec::with_capacity(10_000);
